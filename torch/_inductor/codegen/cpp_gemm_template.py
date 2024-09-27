@@ -451,8 +451,8 @@ class CppPackedGemmTemplate(CppTemplate):
 
             # Step 1: Decide Kc assuming B block is L1-reside.
             size_cache_B = Kr * Kt_blocks * Nr * num_byte_B
-            if dtype_A is torch.bfloat16 and dtype_B is torch.int8:
-                # We will cache dequantized weights (BF16) in L1D
+            if dtype_A is torch.bfloat16 and dtype_B is torch.int8 and Kr != 1:
+                # We will cache dequantized weights (BF16) in L1D for AMX micro-kernel
                 size_cache_B *= 2
             Kc_blocks = Kt_blocks
             if size_cache_B > L1:
