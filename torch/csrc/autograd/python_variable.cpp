@@ -255,7 +255,7 @@ void activateGPUTrace() {
 }
 
 // TODO: Make this take Variable by const reference
-PyObject* THPVariable_Wrap(at::TensorBase var) {
+PyObject* THPVariable_Wrap(Variable var) {
   if (!var.defined()) {
     Py_RETURN_NONE;
   }
