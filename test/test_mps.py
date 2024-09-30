@@ -142,7 +142,7 @@ def mps_ops_grad_modifier(ops):
         'fmod': [torch.float16],
 
         # round not working properly for float16
-        'round': [torch.float16],
+        'round': [torch.float16, torch.bfloat16],
 
         # atomic operation in backward pass
         '_unsafe_masked_index': [torch.float16],
@@ -651,10 +651,10 @@ def mps_ops_modifier(ops):
         #  - MPS output: tensor([2546, 6917, 3181,  ..., 7128,   30, 5133], device='mps:0')
         # Elements from index 30 and 5133 are both equal.
         # Since CPU is not using argsort with stable=True, these cases result in undefined behaviour.
-        'argsort': [torch.float16, torch.int8, torch.uint8, torch.bool],
+        'argsort': [torch.float16, torch.int8, torch.uint8, torch.bool, torch.bfloat16],
         # Same issue as `argsort` with duplicate indices. This test checks both the sorted values and the indices.
         # The values of the sorted tensor match the CPU, but in case of the returned indices this results in undefined behaviour.
-        'sort': [torch.int8, torch.uint8, torch.bool, torch.float16],
+        'sort': [torch.int8, torch.uint8, torch.bool, torch.float16, torch.bfloat16],
     }
 
     MACOS_BEFORE_14_4_XFAILLIST = {
@@ -848,7 +848,7 @@ def mps_ops_modifier(ops):
 
         # Unsupported dtypes
         'dot': [torch.int64],
-        'histc': [torch.float16],
+        'histc': [torch.float16, torch.bfloat16],
         'index_add': [torch.int64],
         'log1p': [torch.int64],
         'sigmoid': [torch.int64],
@@ -929,21 +929,21 @@ def mps_ops_modifier(ops):
 
         # Failures due to random output that they generate using
         # Philox engine causing mismatch with CPU results
-        'multinomial': [torch.float16, torch.float32],  # random results
-        'uniform': [torch.float16, torch.float32],
-        'rand_like': [torch.float16, torch.float32],
+        'multinomial': [torch.float16, torch.float32, torch.bfloat16],  # random results
+        'uniform': [torch.float16, torch.float32, torch.bfloat16],
+        'rand_like': [torch.float16, torch.float32, torch.bfloat16],
         'randint_like': None,
-        'randn_like': [torch.float16, torch.float32],
-        'bernoulli': [torch.float16, torch.float32],
-        'exponential': [torch.float16, torch.float32],
-        'nn.functional.feature_alpha_dropoutwith_train': [torch.float16, torch.float32],
-        'normal': [torch.float16, torch.float32, torch.float16, torch.float32],
-        'normalin_place': [torch.float16, torch.float32],
-        'normalnumber_mean': [torch.float16, torch.float32],
-        'nn.functional.alpha_dropout': [torch.float16, torch.float32],
-        'nn.functional.dropout': [torch.float16, torch.float32],
-        'nn.functional.dropout2d': [torch.float16, torch.float32],
-        'nn.functional.dropout3d': [torch.float16, torch.float32],
+        'randn_like': [torch.float16, torch.float32, torch.bfloat16],
+        'bernoulli': [torch.float16, torch.float32, torch.bfloat16],
+        'exponential': [torch.float16, torch.float32, torch.bfloat16],
+        'nn.functional.feature_alpha_dropoutwith_train': [torch.float16, torch.float32, torch.bfloat16],
+        'normal': [torch.float16, torch.float32, torch.bfloat16],
+        'normalin_place': [torch.float16, torch.float32, torch.bfloat16],
+        'normalnumber_mean': [torch.float16, torch.float32, torch.bfloat16],
+        'nn.functional.alpha_dropout': [torch.float16, torch.float32, torch.bfloat16],
+        'nn.functional.dropout': [torch.float16, torch.float32, torch.bfloat16],
+        'nn.functional.dropout2d': [torch.float16, torch.float32, torch.bfloat16],
+        'nn.functional.dropout3d': [torch.float16, torch.float32, torch.bfloat16],
         # See https://github.com/pytorch/pytorch/issues/111479
         'nn.functional.multi_head_attention_forward': [torch.float32, torch.float16],
 
@@ -951,8 +951,8 @@ def mps_ops_modifier(ops):
         'index_put': None,
         # zero to negative integer powers are undefined
         '__rpow__': [torch.int8, torch.int16, torch.int32, torch.int64],
-        'resize_': [torch.float16, torch.float32],
-        'resize_as_': [torch.float16, torch.float32],
+        'resize_': [torch.float16, torch.float32, torch.bfloat16],
+        'resize_as_': [torch.float16, torch.float32, torch.bfloat16],
 
         # CPU Errors:
         'addr': [torch.bool, torch.int16, torch.int32,
@@ -974,7 +974,7 @@ def mps_ops_modifier(ops):
         'nn.functional.scaled_dot_product_attention': [torch.float32, torch.float16],
 
         # float output for float16 input on MPS
-        'logit': [torch.float16],
+        'logit': [torch.float16, torch.bfloat16],
     }
 
     ON_MPS_XFAILLIST = {
@@ -12015,7 +12015,7 @@ class TestNoRegression(TestCase):
             self.assertEqual(x2.device.type, "mps")
 
 
-MPS_DTYPES = [t for t in get_all_dtypes() if t not in [torch.double, torch.cdouble, torch.bfloat16]]
+MPS_DTYPES = [t for t in get_all_dtypes() if t not in [torch.double, torch.cdouble]]
 
 MPS_GRAD_DTYPES = [torch.float32, torch.float16]
 
@@ -12087,8 +12087,8 @@ class TestConsistency(TestCaseMPS):
         if (op.name in self.FP32_LOW_PRECISION_LIST) and dtype in [torch.float32, torch.complex64]:
             return (1e-4, 3e-5)
 
-        if op.name in self.FP16_LOW_PRECISION_LIST and dtype == torch.float16:
-            return (1e-2, 1e-2)
+        if op.name in self.FP16_LOW_PRECISION_LIST and dtype in [torch.float16, torch.bfloat16]:
+            return (1e-2, 1e-2) if dtype == torch.float16 else (5e-2, 5e-2)
 
         if op.name in ['nn.functional.conv_transpose1d',
                        'nn.functional.conv_transpose2d',
